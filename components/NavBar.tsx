@@ -8,33 +8,34 @@ interface NavBarProps {
 }
 
 export const NavBar: React.FC<NavBarProps> = ({ currentMode, onChangeMode }) => {
-    // Only show navbar in List mode or Settings mode, not inside a Chat
-    if (currentMode === 'CHAT' || currentMode === 'ADD_BOOK') return null;
+    // Only show navbar in main views
+    if (currentMode === 'CHAT' || currentMode === 'ADD_BOOK' || currentMode === 'ONBOARDING') return null;
 
     const navItemClass = (active: boolean) => 
-        `flex flex-col items-center justify-center w-full py-3 ${active ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`;
+        `flex flex-col items-center justify-center w-full py-3 ${active ? 'text-stone-900' : 'text-stone-400 hover:text-stone-600'}`;
 
     return (
-        <div className="bg-white border-t border-gray-100 flex justify-around items-center safe-area-bottom">
+        <div className="bg-white border-t border-stone-100 flex justify-around items-center safe-area-bottom shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
             <button 
                 onClick={() => onChangeMode('LIST')} 
                 className={navItemClass(currentMode === 'LIST')}
             >
-                <MessageCircle size={24} fill={currentMode === 'LIST' ? "currentColor" : "none"} />
-                <span className="text-[10px] mt-1">Chats</span>
+                <MessageCircle size={24} fill={currentMode === 'LIST' ? "currentColor" : "none"} strokeWidth={currentMode === 'LIST' ? 2 : 2} />
+                <span className="text-[10px] mt-1 font-medium">Library</span>
             </button>
             <button 
-                className={navItemClass(false)} // Placeholder for "Search" or "Friends"
+                onClick={() => onChangeMode('PROFILE')} 
+                className={navItemClass(currentMode === 'PROFILE')}
             >
-                <User size={24} />
-                <span className="text-[10px] mt-1">Profile</span>
+                <User size={24} fill={currentMode === 'PROFILE' ? "currentColor" : "none"} strokeWidth={currentMode === 'PROFILE' ? 2 : 2} />
+                <span className="text-[10px] mt-1 font-medium">My Account</span>
             </button>
             <button 
                 onClick={() => onChangeMode('SETTINGS')} 
                 className={navItemClass(currentMode === 'SETTINGS')}
             >
-                <Settings size={24} />
-                <span className="text-[10px] mt-1">More</span>
+                <Settings size={24} fill={currentMode === 'SETTINGS' ? "currentColor" : "none"} strokeWidth={currentMode === 'SETTINGS' ? 2 : 2} />
+                <span className="text-[10px] mt-1 font-medium">Settings</span>
             </button>
         </div>
     );

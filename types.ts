@@ -39,7 +39,13 @@ export interface Book {
   summary?: string;
 }
 
-export type ViewMode = 'LIST' | 'CHAT' | 'ADD_BOOK' | 'SETTINGS';
+export interface UserProfile {
+  name: string;
+  joinedAt: number;
+  avatarUrl?: string; // Optional custom avatar
+}
+
+export type ViewMode = 'ONBOARDING' | 'LIST' | 'CHAT' | 'ADD_BOOK' | 'PROFILE' | 'SETTINGS';
 
 export interface ViewState {
   mode: ViewMode;

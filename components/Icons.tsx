@@ -15,7 +15,10 @@ import {
   X,
   Hash,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Upload,
+  User
 } from 'lucide-react';
 
 export { 
@@ -34,5 +37,8 @@ export {
   X,
   Hash,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Upload,
+  User
 };
