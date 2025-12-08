@@ -1,0 +1,7 @@
+{
+  "name": "BookTalk - Chat with your Library",
+  "description": "A book archiving app with a familiar chat interface. Log notes as messages and talk to your books using AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
