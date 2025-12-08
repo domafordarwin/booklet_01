@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewMode } from '../types';
-import { MessageCircle, Settings, User } from 'lucide-react';
+import { MessageCircle, Settings, User } from './Icons';
 
 interface NavBarProps {
     currentMode: ViewMode;
