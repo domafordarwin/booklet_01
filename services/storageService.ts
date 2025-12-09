@@ -57,7 +57,6 @@ export const saveUserProfile = async (profile: UserProfile) => {
 
     if (isCloud) {
         // Use upsert to handle both insert and update safely
-        // This avoids race conditions and duplicate key errors
         const { error } = await supabase!.from('profiles').upsert({
             id: user.id,
             name: profile.name,
@@ -65,7 +64,7 @@ export const saveUserProfile = async (profile: UserProfile) => {
             avatar_url: profile.avatarUrl
         }, { onConflict: 'id' });
 
-        if (error) console.error("Error saving profile:", error);
+        if (error) throw error;
     } else {
         localStorage.setItem('booktalk_user_profile', JSON.stringify(profile));
     }
@@ -106,7 +105,7 @@ export const getBooks = async (): Promise<Book[]> => {
 export const saveBook = async (book: Book) => {
     if (isCloud) {
         const user = await getCurrentUser();
-        if (!user) return;
+        if (!user) throw new Error("User not logged in");
 
         const { error } = await supabase!.from('books').upsert({
             id: book.id,
@@ -122,7 +121,7 @@ export const saveBook = async (book: Book) => {
             summary: book.summary
         });
 
-        if (error) console.error("Error saving book:", error);
+        if (error) throw error;
     } else {
         const books = await getBooks();
         const existingIndex = books.findIndex(b => b.id === book.id);
@@ -171,7 +170,7 @@ export const getMessages = async (bookId: string): Promise<Message[]> => {
 export const addMessage = async (message: Message) => {
     if (isCloud) {
         const user = await getCurrentUser();
-        if (!user) return;
+        if (!user) throw new Error("User not logged in");
 
         const { error } = await supabase!.from('messages').insert({
             id: message.id,
@@ -186,7 +185,7 @@ export const addMessage = async (message: Message) => {
             keywords: message.keywords
         });
 
-        if (error) console.error("Error adding message:", error);
+        if (error) throw error;
     } else {
         const messages = await getMessages(message.bookId);
         messages.push(message);
@@ -207,11 +206,8 @@ export const updateMessage = async (messageId: string, updates: Partial<Message>
             .update(dbUpdates)
             .eq('id', messageId);
             
-        if (error) console.error("Error updating message:", error);
+        if (error) throw error;
     } else {
-        // Need to find the bookId for local storage key... 
-        // In local mode, this is inefficient, we have to search all keys or pass bookId.
-        // For prototype simplicity, we iterate all message keys.
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key?.startsWith('booktalk_messages_')) {

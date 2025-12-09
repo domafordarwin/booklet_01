@@ -123,13 +123,19 @@ function App() {
     newBook.lastMessage = welcomeText;
 
     // Optimistic UI update
+    const prevBooks = [...books];
     setBooks([newBook, ...books]);
-    
-    // Async save
-    await StorageService.saveBook(newBook);
-    await StorageService.addMessage(welcomeMsg);
-
     setMode('LIST');
+
+    try {
+        // Async save
+        await StorageService.saveBook(newBook);
+        await StorageService.addMessage(welcomeMsg);
+    } catch (error: any) {
+        console.error("Failed to save book:", error);
+        alert(`Failed to save book: ${error.message || 'Unknown error'}`);
+        setBooks(prevBooks); // Rollback
+    }
   };
 
   const handleSendMessage = async (
@@ -150,13 +156,13 @@ function App() {
       ...extras
     };
 
+    // Snapshot for rollback
+    const prevMessages = [...messages];
+    const prevBooks = [...books];
+
     // Optimistic Update
     setMessages(prev => [...prev, newMessage]);
     
-    // Async save
-    await StorageService.addMessage(newMessage);
-
-    // Update Book list preview
     const updatedBooks = books.map(b => {
       if (b.id === activeBookId) {
         return {
@@ -168,9 +174,22 @@ function App() {
       return b;
     });
     setBooks(updatedBooks);
-    // Find the updated book to save it
-    const updatedBook = updatedBooks.find(b => b.id === activeBookId);
-    if (updatedBook) await StorageService.saveBook(updatedBook);
+
+    try {
+        // Async save
+        await StorageService.addMessage(newMessage);
+        
+        // Find the updated book to save it (update timestamp)
+        const updatedBook = updatedBooks.find(b => b.id === activeBookId);
+        if (updatedBook) await StorageService.saveBook(updatedBook);
+
+    } catch (error: any) {
+        console.error("Failed to send message:", error);
+        alert(`Failed to save message: ${error.message || 'Database error'}`);
+        // Rollback
+        setMessages(prevMessages);
+        setBooks(prevBooks);
+    }
   };
 
   const handleUpdateMessage = async (messageId: string, updates: Partial<Message>) => {
@@ -180,7 +199,11 @@ function App() {
         msg.id === messageId ? { ...msg, ...updates } : msg
     ));
     
-    await StorageService.updateMessage(messageId, updates);
+    try {
+        await StorageService.updateMessage(messageId, updates);
+    } catch (e) {
+        console.error("Failed to update message keywords", e);
+    }
   };
 
   const handleUpdateBook = async (updates: Partial<Book>) => {
@@ -192,7 +215,13 @@ function App() {
       setBooks(updatedBooks);
       
       const updatedBook = updatedBooks.find(b => b.id === activeBookId);
-      if (updatedBook) await StorageService.saveBook(updatedBook);
+      if (updatedBook) {
+          try {
+              await StorageService.saveBook(updatedBook);
+          } catch (error) {
+              console.error("Failed to update book status", error);
+          }
+      }
   };
 
   if (loading) {
