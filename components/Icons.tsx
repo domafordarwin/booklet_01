@@ -18,7 +18,9 @@ import {
   ChevronRight,
   Download,
   Upload,
-  User
+  User,
+  Loader2,
+  LogOut
 } from 'lucide-react';
 
 export { 
@@ -40,5 +42,7 @@ export {
   ChevronRight,
   Download,
   Upload,
-  User
+  User,
+  Loader2,
+  LogOut
 };

@@ -1,133 +1,228 @@
+import { supabase } from './supabaseClient';
 import { Book, Message, ReadingStatus, MessageType, UserProfile } from '../types';
 
-const BOOKS_KEY = 'booktalk_books';
-const MESSAGES_KEY = 'booktalk_messages';
-const PROFILE_KEY = 'booktalk_profile';
+// Helper to check if we are in cloud mode
+const isCloud = !!supabase;
 
-export const getBooks = (): Book[] => {
-  try {
-    const data = localStorage.getItem(BOOKS_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.error("Failed to load books", e);
-    return [];
-  }
+// --- User / Auth ---
+
+export const getCurrentUser = async () => {
+    if (isCloud) {
+        const { data: { user } } = await supabase!.auth.getUser();
+        return user;
+    } else {
+        // Local Mock User
+        const localUserStr = localStorage.getItem('booktalk_user_session');
+        return localUserStr ? JSON.parse(localUserStr) : null;
+    }
 };
 
-export const saveBooks = (books: Book[]) => {
-  localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+export const getUserProfile = async (): Promise<UserProfile | null> => {
+    const user = await getCurrentUser();
+    if (!user) return null;
+
+    if (isCloud) {
+        const { data, error } = await supabase!
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (error || !data) return null;
+
+        return {
+            name: data.name,
+            joinedAt: data.joined_at,
+            avatarUrl: data.avatar_url
+        };
+    } else {
+        // Local Profile
+        const profileStr = localStorage.getItem('booktalk_user_profile');
+        return profileStr ? JSON.parse(profileStr) : null;
+    }
 };
 
-export const getMessages = (bookId: string): Message[] => {
-  try {
-    const data = localStorage.getItem(`${MESSAGES_KEY}_${bookId}`);
-    return data ? JSON.parse(data) : [];
-  } catch (e) {
-    console.error("Failed to load messages", e);
-    return [];
-  }
-};
-
-export const saveMessages = (bookId: string, messages: Message[]) => {
-  localStorage.setItem(`${MESSAGES_KEY}_${bookId}`, JSON.stringify(messages));
-};
-
-export const getUserProfile = (): UserProfile | null => {
-  try {
-    const data = localStorage.getItem(PROFILE_KEY);
-    return data ? JSON.parse(data) : null;
-  } catch (e) {
-    return null;
-  }
-};
-
-export const saveUserProfile = (profile: UserProfile) => {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-};
-
-export const deleteBookData = (bookId: string) => {
-  const books = getBooks().filter(b => b.id !== bookId);
-  saveBooks(books);
-  localStorage.removeItem(`${MESSAGES_KEY}_${bookId}`);
-}
-
-// Initial seed if empty
-export const seedInitialData = () => {
-  // We no longer auto-seed books on fresh load to allow for "Onboarding" flow to take precedence.
-  // Data will be seeded only after user creates a profile if they have no books.
-};
-
-export const seedDemoBook = () => {
-    const demoId = 'demo-1';
-    const initialBook: Book = {
-      id: demoId,
-      title: 'The Great Gatsby',
-      author: 'F. Scott Fitzgerald',
-      coverUrl: 'https://picsum.photos/id/24/200/300',
-      status: ReadingStatus.READING,
-      rating: 0,
-      lastMessage: 'Welcome to your reading log for The Great Gatsby.',
-      lastMessageTime: Date.now(),
-      addedAt: Date.now(),
-      summary: 'A story of decadence and excess.',
-    };
-    const initialMessages: Message[] = [
-      {
-        id: 'msg-1',
-        bookId: demoId,
-        text: 'Welcome to your reading log for The Great Gatsby. You can chat with me about the plot!',
-        type: MessageType.SYSTEM,
-        timestamp: Date.now(),
-        sender: 'book'
-      }
-    ];
-    saveBooks([initialBook]);
-    saveMessages(demoId, initialMessages);
-}
-
-// --- Backup & Restore ---
-
-export interface BackupData {
-    version: number;
-    timestamp: number;
-    profile: UserProfile | null;
-    books: Book[];
-    messages: Record<string, Message[]>;
-}
-
-export const createBackup = (): BackupData => {
-    const books = getBooks();
-    const profile = getUserProfile();
-    const messagesMap: Record<string, Message[]> = {};
+export const saveUserProfile = async (profile: UserProfile) => {
+    const user = await getCurrentUser();
     
-    books.forEach(book => {
-        messagesMap[book.id] = getMessages(book.id);
-    });
+    // For local mode login simulation
+    if (!user && !isCloud) {
+        const mockUser = { id: 'local-user-' + Date.now(), email: 'demo@local.com' };
+        localStorage.setItem('booktalk_user_session', JSON.stringify(mockUser));
+        localStorage.setItem('booktalk_user_profile', JSON.stringify(profile));
+        return;
+    }
 
-    return {
-        version: 1,
-        timestamp: Date.now(),
-        profile,
-        books,
-        messages: messagesMap
-    };
+    if (!user) throw new Error("No user logged in");
+
+    if (isCloud) {
+        // Use upsert to handle both insert and update safely
+        // This avoids race conditions and duplicate key errors
+        const { error } = await supabase!.from('profiles').upsert({
+            id: user.id,
+            name: profile.name,
+            joined_at: profile.joinedAt,
+            avatar_url: profile.avatarUrl
+        }, { onConflict: 'id' });
+
+        if (error) console.error("Error saving profile:", error);
+    } else {
+        localStorage.setItem('booktalk_user_profile', JSON.stringify(profile));
+    }
 };
 
-export const restoreBackup = (data: BackupData) => {
-    if (!data.books || !data.messages) {
-        throw new Error("Invalid backup file format");
+// --- Books ---
+
+export const getBooks = async (): Promise<Book[]> => {
+    if (isCloud) {
+        const { data, error } = await supabase!
+            .from('books')
+            .select('*')
+            .order('last_message_time', { ascending: false });
+
+        if (error) {
+            console.error("Error fetching books:", error);
+            return [];
+        }
+
+        return data.map((b: any) => ({
+            id: b.id,
+            title: b.title,
+            author: b.author,
+            coverUrl: b.cover_url,
+            status: b.status as ReadingStatus,
+            rating: b.rating,
+            lastMessage: b.last_message,
+            lastMessageTime: b.last_message_time,
+            addedAt: b.added_at,
+            summary: b.summary
+        }));
+    } else {
+        const booksStr = localStorage.getItem('booktalk_books');
+        return booksStr ? JSON.parse(booksStr) : [];
     }
+};
 
-    // Restore Profile if exists in backup
-    if (data.profile) {
-        saveUserProfile(data.profile);
+export const saveBook = async (book: Book) => {
+    if (isCloud) {
+        const user = await getCurrentUser();
+        if (!user) return;
+
+        const { error } = await supabase!.from('books').upsert({
+            id: book.id,
+            user_id: user.id,
+            title: book.title,
+            author: book.author,
+            cover_url: book.coverUrl,
+            status: book.status,
+            rating: book.rating,
+            added_at: book.addedAt,
+            last_message: book.lastMessage,
+            last_message_time: book.lastMessageTime,
+            summary: book.summary
+        });
+
+        if (error) console.error("Error saving book:", error);
+    } else {
+        const books = await getBooks();
+        const existingIndex = books.findIndex(b => b.id === book.id);
+        if (existingIndex >= 0) {
+            books[existingIndex] = book;
+        } else {
+            books.push(book);
+        }
+        localStorage.setItem('booktalk_books', JSON.stringify(books));
     }
+};
 
-    // Restore books
-    saveBooks(data.books);
+// --- Messages ---
 
-    // Restore messages for each book
-    Object.keys(data.messages).forEach(bookId => {
-        saveMessages(bookId, data.messages[bookId]);
-    });
+export const getMessages = async (bookId: string): Promise<Message[]> => {
+    if (isCloud) {
+        const { data, error } = await supabase!
+            .from('messages')
+            .select('*')
+            .eq('book_id', bookId)
+            .order('timestamp', { ascending: true });
+
+        if (error) {
+            console.error("Error fetching messages:", error);
+            return [];
+        }
+
+        return data.map((m: any) => ({
+            id: m.id,
+            bookId: m.book_id,
+            text: m.text,
+            type: m.type as MessageType,
+            timestamp: m.timestamp,
+            sender: m.sender as 'user' | 'book',
+            page: m.page,
+            thought: m.thought,
+            keywords: m.keywords
+        }));
+    } else {
+        const key = `booktalk_messages_${bookId}`;
+        const msgsStr = localStorage.getItem(key);
+        return msgsStr ? JSON.parse(msgsStr) : [];
+    }
+};
+
+export const addMessage = async (message: Message) => {
+    if (isCloud) {
+        const user = await getCurrentUser();
+        if (!user) return;
+
+        const { error } = await supabase!.from('messages').insert({
+            id: message.id,
+            book_id: message.bookId,
+            user_id: user.id,
+            text: message.text,
+            type: message.type,
+            sender: message.sender,
+            timestamp: message.timestamp,
+            page: message.page,
+            thought: message.thought,
+            keywords: message.keywords
+        });
+
+        if (error) console.error("Error adding message:", error);
+    } else {
+        const messages = await getMessages(message.bookId);
+        messages.push(message);
+        localStorage.setItem(`booktalk_messages_${message.bookId}`, JSON.stringify(messages));
+    }
+};
+
+export const updateMessage = async (messageId: string, updates: Partial<Message>) => {
+    if (isCloud) {
+        const dbUpdates: any = {};
+        if (updates.keywords) dbUpdates.keywords = updates.keywords;
+        if (updates.text) dbUpdates.text = updates.text;
+        
+        if (Object.keys(dbUpdates).length === 0) return;
+
+        const { error } = await supabase!
+            .from('messages')
+            .update(dbUpdates)
+            .eq('id', messageId);
+            
+        if (error) console.error("Error updating message:", error);
+    } else {
+        // Need to find the bookId for local storage key... 
+        // In local mode, this is inefficient, we have to search all keys or pass bookId.
+        // For prototype simplicity, we iterate all message keys.
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.startsWith('booktalk_messages_')) {
+                const msgs: Message[] = JSON.parse(localStorage.getItem(key)!);
+                const targetIndex = msgs.findIndex(m => m.id === messageId);
+                if (targetIndex !== -1) {
+                    msgs[targetIndex] = { ...msgs[targetIndex], ...updates };
+                    localStorage.setItem(key, JSON.stringify(msgs));
+                    break;
+                }
+            }
+        }
+    }
 };

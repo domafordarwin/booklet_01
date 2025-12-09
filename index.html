@@ -5,8 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>BookTalk</title>
     <script>
+      // Polyfill for process.env to prevent crashes in browser environment
+      window.process = {
+        env: {
+          NODE_ENV: 'development'
+        }
+      };
+
       // Suppress Tailwind CDN warning for cleaner console in production/Vercel
-      // This is necessary because we are using the standalone script for this prototype without a build step.
       const originalWarn = console.warn;
       console.warn = (...args) => {
         if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
@@ -46,6 +52,7 @@
     "react-dom/": "https://esm.sh/react-dom@18.3.1/",
     "@google/genai": "https://esm.sh/@google/genai@0.1.2",
     "lucide-react": "https://esm.sh/lucide-react@0.454.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.0",
     "react/": "https://aistudiocdn.com/react@^19.2.1/"
   }
 }
