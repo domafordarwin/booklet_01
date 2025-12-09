@@ -222,3 +222,55 @@ export const updateMessage = async (messageId: string, updates: Partial<Message>
         }
     }
 };
+
+// --- Seeding Data ---
+
+export const seedStatusAnxiety = async () => {
+    const bookId = crypto.randomUUID();
+    const now = Date.now();
+
+    const book: Book = {
+        id: bookId,
+        title: '불안 (Status Anxiety)',
+        author: '알랭 드 보통 (Alain de Botton)',
+        coverUrl: 'https://image.yes24.com/goods/11264627/XL', // External URL
+        status: ReadingStatus.READING,
+        rating: 0,
+        addedAt: now,
+        lastMessage: 'Started reading.',
+        lastMessageTime: now,
+        summary: '사랑결핍, 속물근성, 기대, 능력주의, 불확실성 등 불안의 원인을 파헤치고 철학, 예술, 정치, 기독교, 보헤미아에서 그 해법을 찾는다.'
+    };
+
+    const messages: Message[] = [
+        {
+            id: crypto.randomUUID(),
+            bookId: bookId,
+            text: "어서 오세요. 이 책은 당신이 느끼는 사회적 지위에 대한 불안을 이해하고, 그것을 다스리는 데 도움을 줄 것입니다.",
+            type: MessageType.SYSTEM,
+            timestamp: now,
+            sender: 'book'
+        },
+        {
+            id: crypto.randomUUID(),
+            bookId: bookId,
+            text: "우리는 사랑을 구할 때, 사실은 사랑이 아니라 ‘관심’을 구하는 것일지도 모른다.",
+            type: MessageType.QUOTE,
+            timestamp: now + 1000,
+            sender: 'user',
+            page: "24",
+            thought: "정말 공감되는 문장이다. 내가 원했던 건 타인의 인정이었을까?",
+            keywords: ["사랑", "관심", "인정욕구"]
+        }
+    ];
+
+    // Save Book
+    await saveBook(book);
+    
+    // Save Messages
+    for (const msg of messages) {
+        await addMessage(msg);
+    }
+    
+    return book;
+};

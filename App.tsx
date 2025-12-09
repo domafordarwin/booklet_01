@@ -9,7 +9,7 @@ import { AddBookView } from './components/AddBookView';
 import { NavBar } from './components/NavBar';
 import { ProfileView } from './components/ProfileView';
 import { AuthView } from './components/AuthView';
-import { Loader2, BrainCircuit } from './components/Icons';
+import { Loader2, BrainCircuit, Download } from './components/Icons';
 
 function App() {
   const [mode, setMode] = useState<ViewMode>('ONBOARDING');
@@ -22,6 +22,7 @@ function App() {
   // Settings state
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   // Initial Auth Check
   useEffect(() => {
@@ -241,6 +242,19 @@ function App() {
     }
   };
 
+  const handleSeedStatusAnxiety = async () => {
+      setSeeding(true);
+      try {
+          await StorageService.seedStatusAnxiety();
+          await loadBooks();
+          setMode('LIST');
+      } catch (error: any) {
+          alert("Error adding sample book: " + error.message);
+      } finally {
+          setSeeding(false);
+      }
+  };
+
   if (loading) {
       return (
           <div className="flex h-screen items-center justify-center bg-[#fdfbf7]">
@@ -344,6 +358,24 @@ function App() {
                                 )}
                             </button>
                         </div>
+                    </section>
+
+                    {/* Seed Data Section */}
+                    <section>
+                         <h2 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Sample Data</h2>
+                         <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
+                             <p className="text-sm text-stone-600 mb-4">
+                                 Add "Status Anxiety" by Alain de Botton to test the library features without uploading images manually.
+                             </p>
+                             <button
+                                onClick={handleSeedStatusAnxiety}
+                                disabled={seeding}
+                                className="w-full py-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 font-bold text-sm hover:bg-amber-100 transition-colors flex items-center justify-center gap-2"
+                             >
+                                 {seeding ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+                                 Add 'Status Anxiety' (Sample)
+                             </button>
+                         </div>
                     </section>
 
                     <section>
