@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for chat feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #a8a29e;
+  border-radius: 3px;
+}
+
+/* Prevent pull-to-refresh on mobile */
+body {
+  overscroll-behavior-y: none;
+  font-family: 'Lato', sans-serif;
+}
+
+.font-serif {
+  font-family: 'Merriweather', serif;
+}
