@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Book, Message, ViewMode, ReadingStatus, MessageType, UserProfile } from './types';
 import * as StorageService from './services/storageService';
 import * as GeminiService from './services/geminiService';
-import { supabase } from './services/supabaseClient';
+import { supabase, testConnection } from './services/supabaseClient';
 import { BookList } from './components/BookList';
 import { ChatRoom } from './components/ChatRoom';
 import { AddBookView } from './components/AddBookView';
 import { NavBar } from './components/NavBar';
 import { ProfileView } from './components/ProfileView';
 import { AuthView } from './components/AuthView';
-import { Loader2 } from './components/Icons';
+import { Loader2, BrainCircuit } from './components/Icons';
 
 function App() {
   const [mode, setMode] = useState<ViewMode>('ONBOARDING');
@@ -18,6 +18,10 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Settings state
+  const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
 
   // Initial Auth Check
   useEffect(() => {
@@ -224,6 +228,19 @@ function App() {
       }
   };
 
+  const handleRunConnectionTest = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+        const result = await testConnection();
+        setTestResult(result);
+    } catch (e) {
+        setTestResult({ success: false, message: "Unknown error during test." });
+    } finally {
+        setIsTesting(false);
+    }
+  };
+
   if (loading) {
       return (
           <div className="flex h-screen items-center justify-center bg-[#fdfbf7]">
@@ -282,11 +299,58 @@ function App() {
                    <p className="text-gray-500 text-sm mt-1">App Configuration</p>
                 </div>
                 <div className="p-6 space-y-6 overflow-y-auto">
+                    
+                    {/* Cloud Connection Test Section */}
                     <section>
-                        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">About</h2>
-                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                            <p className="text-gray-500 text-sm leading-relaxed">
-                                BookTalk v2.0 (Hybrid Edition)
+                        <h2 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">Cloud Connection</h2>
+                        <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-base font-bold text-stone-800">Supabase Status</span>
+                                <div className={`flex items-center gap-2 ${supabase ? 'text-stone-900' : 'text-stone-400'}`}>
+                                    <span className="text-xs font-mono">{supabase ? 'CONFIGURED' : 'DEMO MODE'}</span>
+                                    <div className={`w-3 h-3 rounded-full ${supabase ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-stone-50 p-3 rounded-lg border border-stone-100 mb-4 font-mono text-xs text-stone-500 break-all">
+                                URL: {supabase ? 'CONFIGURED' : 'NOT SET'}
+                            </div>
+
+                            {testResult && (
+                                <div className={`p-4 rounded-lg mb-4 text-sm font-medium border animate-in fade-in slide-in-from-top-2 flex items-start gap-2 ${testResult.success ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {testResult.success ? <BrainCircuit size={16} className="mt-0.5" /> : <Loader2 size={16} className="mt-0.5" />}
+                                    <div>
+                                        <p className="font-bold">{testResult.success ? 'Connection Successful' : 'Connection Failed'}</p>
+                                        <p className="font-normal opacity-90 mt-1">{testResult.message}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button 
+                                onClick={handleRunConnectionTest}
+                                disabled={isTesting || !supabase}
+                                className={`w-full py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2
+                                    ${isTesting ? 'bg-stone-100 text-stone-400' : 'bg-stone-900 text-white hover:bg-stone-800'}
+                                    ${!supabase && 'opacity-50 cursor-not-allowed'}
+                                `}
+                            >
+                                {isTesting ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={16} />
+                                        Testing Connection...
+                                    </>
+                                ) : (
+                                    'Test Connection'
+                                )}
+                            </button>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h2 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4">About</h2>
+                        <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+                            <p className="text-stone-600 text-sm leading-relaxed">
+                                BookTalk v2.1
                             </p>
                         </div>
                     </section>
