@@ -9,7 +9,7 @@ import { AddBookView } from './components/AddBookView';
 import { NavBar } from './components/NavBar';
 import { ProfileView } from './components/ProfileView';
 import { AuthView } from './components/AuthView';
-import { Loader2, BrainCircuit, Download } from './components/Icons';
+import { Loader2, BrainCircuit, Download, AlertTriangle, CheckCircle2, X } from './components/Icons';
 
 function App() {
   const [mode, setMode] = useState<ViewMode>('ONBOARDING');
@@ -23,6 +23,19 @@ function App() {
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [seeding, setSeeding] = useState(false);
+
+  // Run connection test on mount to inform user
+  useEffect(() => {
+    if (supabase) {
+        testConnection().then(result => {
+            setTestResult(result);
+            // If strictly successful (and not a warning), hide after 4 seconds
+            if (result.success && !result.message.includes('Warning')) {
+                setTimeout(() => setTestResult(null), 4000);
+            }
+        });
+    }
+  }, []);
 
   // Initial Auth Check
   useEffect(() => {
@@ -231,7 +244,7 @@ function App() {
 
   const handleRunConnectionTest = async () => {
     setIsTesting(true);
-    setTestResult(null);
+    // don't clear result immediately to prevent flickering if it's fast
     try {
         const result = await testConnection();
         setTestResult(result);
@@ -330,16 +343,6 @@ function App() {
                                 URL: {supabase ? 'CONFIGURED' : 'NOT SET'}
                             </div>
 
-                            {testResult && (
-                                <div className={`p-4 rounded-lg mb-4 text-sm font-medium border animate-in fade-in slide-in-from-top-2 flex items-start gap-2 ${testResult.success ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    {testResult.success ? <BrainCircuit size={16} className="mt-0.5" /> : <Loader2 size={16} className="mt-0.5" />}
-                                    <div>
-                                        <p className="font-bold">{testResult.success ? 'Connection Successful' : 'Connection Failed'}</p>
-                                        <p className="font-normal opacity-90 mt-1">{testResult.message}</p>
-                                    </div>
-                                </div>
-                            )}
-
                             <button 
                                 onClick={handleRunConnectionTest}
                                 disabled={isTesting || !supabase}
@@ -396,6 +399,26 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-gray-50 shadow-2xl relative">
+      {/* Global Connection Banner */}
+      {testResult && (
+        <div className={`absolute top-0 left-0 right-0 z-50 p-3 text-sm font-medium text-center animate-in slide-in-from-top-2 shadow-md flex items-center justify-between px-4 ${
+            testResult.success 
+                ? (testResult.message.includes('Warning') ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800')
+                : 'bg-red-100 text-red-800'
+        }`}>
+            <div className="flex items-center gap-2 mx-auto">
+                {testResult.success 
+                    ? (testResult.message.includes('Warning') ? <AlertTriangle size={16} /> : <CheckCircle2 size={16}/>) 
+                    : <AlertTriangle size={16}/>
+                } 
+                <span className="truncate max-w-[280px]">{testResult.message}</span>
+            </div>
+            <button onClick={() => setTestResult(null)} className="opacity-60 hover:opacity-100 p-1">
+                <X size={16}/>
+            </button>
+        </div>
+      )}
+      
       <div className="flex-1 overflow-hidden relative">
         {renderContent()}
       </div>

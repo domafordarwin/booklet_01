@@ -16,15 +16,24 @@ export const testConnection = async () => {
     try {
         const start = Date.now();
         // Simply try to get session or select from a likely table to test connectivity
-        // Using 'books' as it's the main table. If schema is missing, this errors (which is good info).
+        // Using 'books' as it's the main table.
         const { error } = await supabase.from('books').select('count', { count: 'exact', head: true });
         
         if (error) {
             console.error("Supabase connection test error:", error);
-            // If table doesn't exist, it's still a connection success (404/42P01), but schema failure.
+            
+            // 42P01 is Postgres code for "undefined_table". 
+            // This means we connected successfully, but the table hasn't been created yet.
+            if (error.code === '42P01') {
+                 return { 
+                     success: true, 
+                     message: "Connected! (Warning: 'books' table missing. Please run SQL migrations.)" 
+                 };
+            }
+
             return { 
                 success: false, 
-                message: `Connected to server, but query failed: ${error.message} (Code: ${error.code})` 
+                message: `Connection failed: ${error.message} (Code: ${error.code || 'UNKNOWN'})` 
             };
         }
         
@@ -32,6 +41,6 @@ export const testConnection = async () => {
         return { success: true, message: `Connected successfully (${latency}ms).` };
     } catch (err: any) {
         console.error("Supabase connection unexpected error:", err);
-        return { success: false, message: `Connection failed: ${err.message}` };
+        return { success: false, message: `Unexpected error: ${err.message}` };
     }
 };

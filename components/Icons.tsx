@@ -20,7 +20,8 @@ import {
   Upload,
   User,
   Loader2,
-  LogOut
+  LogOut,
+  AlertTriangle
 } from 'lucide-react';
 
 export { 
@@ -44,5 +45,6 @@ export {
   Upload,
   User,
   Loader2,
-  LogOut
+  LogOut,
+  AlertTriangle
 };
