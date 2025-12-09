@@ -1,15 +1,27 @@
 import { supabase } from './supabaseClient';
 import { Book, Message, ReadingStatus, MessageType, UserProfile } from '../types';
 
+let offlineOverride = false;
+
+export const enableOfflineMode = () => {
+    offlineOverride = true;
+};
+
 // Helper to check if we are in cloud mode
-const isCloud = !!supabase;
+const isCloud = () => !!supabase && !offlineOverride;
 
 // --- User / Auth ---
 
 export const getCurrentUser = async () => {
-    if (isCloud) {
-        const { data: { user } } = await supabase!.auth.getUser();
-        return user;
+    if (isCloud()) {
+        try {
+            const { data, error } = await supabase!.auth.getUser();
+            if (error || !data) return null;
+            return data.user;
+        } catch (e) {
+            console.error("Error fetching user:", e);
+            return null;
+        }
     } else {
         // Local Mock User
         const localUserStr = localStorage.getItem('booktalk_user_session');
@@ -21,7 +33,7 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
     const user = await getCurrentUser();
     if (!user) return null;
 
-    if (isCloud) {
+    if (isCloud()) {
         const { data, error } = await supabase!
             .from('profiles')
             .select('*')
@@ -46,7 +58,7 @@ export const saveUserProfile = async (profile: UserProfile) => {
     const user = await getCurrentUser();
     
     // For local mode login simulation
-    if (!user && !isCloud) {
+    if (!user && !isCloud()) {
         const mockUser = { id: 'local-user-' + Date.now(), email: 'demo@local.com' };
         localStorage.setItem('booktalk_user_session', JSON.stringify(mockUser));
         localStorage.setItem('booktalk_user_profile', JSON.stringify(profile));
@@ -55,7 +67,7 @@ export const saveUserProfile = async (profile: UserProfile) => {
 
     if (!user) throw new Error("No user logged in");
 
-    if (isCloud) {
+    if (isCloud()) {
         // Use upsert to handle both insert and update safely
         const { error } = await supabase!.from('profiles').upsert({
             id: user.id,
@@ -73,7 +85,7 @@ export const saveUserProfile = async (profile: UserProfile) => {
 // --- Books ---
 
 export const getBooks = async (): Promise<Book[]> => {
-    if (isCloud) {
+    if (isCloud()) {
         const { data, error } = await supabase!
             .from('books')
             .select('*')
@@ -103,7 +115,7 @@ export const getBooks = async (): Promise<Book[]> => {
 };
 
 export const saveBook = async (book: Book) => {
-    if (isCloud) {
+    if (isCloud()) {
         const user = await getCurrentUser();
         if (!user) throw new Error("User not logged in");
 
@@ -137,7 +149,7 @@ export const saveBook = async (book: Book) => {
 // --- Messages ---
 
 export const getMessages = async (bookId: string): Promise<Message[]> => {
-    if (isCloud) {
+    if (isCloud()) {
         const { data, error } = await supabase!
             .from('messages')
             .select('*')
@@ -168,7 +180,7 @@ export const getMessages = async (bookId: string): Promise<Message[]> => {
 };
 
 export const addMessage = async (message: Message) => {
-    if (isCloud) {
+    if (isCloud()) {
         const user = await getCurrentUser();
         if (!user) throw new Error("User not logged in");
 
@@ -194,7 +206,7 @@ export const addMessage = async (message: Message) => {
 };
 
 export const updateMessage = async (messageId: string, updates: Partial<Message>) => {
-    if (isCloud) {
+    if (isCloud()) {
         const dbUpdates: any = {};
         if (updates.keywords) dbUpdates.keywords = updates.keywords;
         if (updates.text) dbUpdates.text = updates.text;
